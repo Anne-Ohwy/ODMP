@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 13 19:05:09 2022
 
-@author: 24394
-
-"""
 
 from torch.nn import Parameter
 import math
@@ -46,18 +41,18 @@ class GraphConvolution(nn.Module):
         self.K = 3
         self.in_feature = in_features
         self.out_feature = out_features
-        self.L_tilde = self.scaled_Laplacian(adj_mx) #拉普拉斯矩阵
+        self.L_tilde = self.scaled_Laplacian(adj_mx) 
         self.cheb_polynomials = self.cheb_polynomial(self.L_tilde, self.K)
         self.Theta = nn.ParameterList([nn.Parameter(torch.FloatTensor(self.in_feature, self.out_feature)) for _ in range(self.K)])
         
     def scaled_Laplacian(self, W):  # adj_mx
         # W = adj_mx
         assert W.shape[0] == W.shape[1] 
-        D = np.diag(np.sum(W, axis=1)) #度矩阵
+        D = np.diag(np.sum(W, axis=1)) 
         L = D - W 
         lambda_max = eigs(L, k=1, which='LR')[0].real
 
-        return (2 * L) / lambda_max - np.identity(W.shape[0]) # identity是特征矩阵I
+        return (2 * L) / lambda_max - np.identity(W.shape[0]) 
     def cheb_polynomial(self, L_tilde, K):
         N = L_tilde.shape[0]
         cheb_polynomials = [np.identity(N), L_tilde.copy()]
