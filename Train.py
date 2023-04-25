@@ -15,11 +15,9 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 # path = '/data/home/u20114054/STNN-ODDP/'
 from torch.utils import data
 path  = '/home/test/PycharmProjects/Anne'
-# path = 'C:/Users/anne_/OneDrive - bjtu.edu.cn/1 OD动态估计'
 os.chdir(path)
 
 DEVICE =  torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 
 if torch.cuda.is_available():
@@ -124,7 +122,7 @@ if torch.cuda.is_available():
     net.cuda()
 # print(net)
 
-# TODO: loss
+
 criterion = nn.MSELoss(reduction='none').to(DEVICE)
 # criterion = nn.L1Loss(reduction='none').to(DEVICE)
 optimizer = optim.Adam(net.parameters(), lr=lr)
@@ -157,8 +155,8 @@ for epoch in range(start_epoch+1, epoches): # 200
     print("epoch: %d, time:%.2f"%(epoch,time()-start_time))
     
     with torch.no_grad():
-        val_loss_log = []  # 记录了所有batch的loss
-        val_prediction,val_target = [],[] # 存储所有batch的output
+        val_loss_log = [] 
+        val_prediction,val_target = [],[] 
         for xinout, xod, xut, prob, yin, yod in val_iter:
 
             yin = yin.permute(0,1,3,2)
@@ -183,7 +181,7 @@ for epoch in range(start_epoch+1, epoches): # 200
         validation_loss = sum(val_loss_log) / len(val_loss_log)
         validation_loss_log_all.append(validation_loss)
         print(' validation loss: %.4f' % (validation_loss))
-        # break
+
 
     if validation_loss < best_val_loss:
         best_val_loss = validation_loss
@@ -205,18 +203,15 @@ for epoch in range(start_epoch+1, epoches): # 200
             torch.cuda.empty_cache()
             
         if model == "branch2":
-            yp_od = net.module.branch2(xod)
+            yp_od = net.module.branch2(xod) # net.branch2
             loss = (mask_mx * criterion(yp_od, yod)).mean()
             loss.backward()
             optimizer.step()
             train_loss = loss.item()
             train_loss_log.append(train_loss)
+            
         elif model == "direct":
-            yp_in = net.module.branch1(xinout)
             yp_od = net(xinout,xod,xdi)
-
-            loss_in = (mask_mx * criterion(yp_in, yin)).mean()
-            loss_in.backward(retain_graph=True)    
             loss = (mask_mx * criterion(yp_od, yod)).mean()
             loss.backward()
             optimizer.step()
@@ -224,11 +219,7 @@ for epoch in range(start_epoch+1, epoches): # 200
             train_loss_log.append(train_loss)
             
         elif model == "prob":
-            yp_in = net.module.branch1(xinout)
             yp_od = net(xinout,xod,prob)
-
-            loss_in = (mask_mx * criterion(yp_in, yin)).mean()
-            loss_in.backward(retain_graph=True)    
             loss = (mask_mx * criterion(yp_od, yod)).mean()
             loss.backward()
             optimizer.step()
@@ -236,11 +227,7 @@ for epoch in range(start_epoch+1, epoches): # 200
             train_loss_log.append(train_loss)
             
         elif model == "DCM": 
-            yp_in = net.module.branch1(xinout)
             yp_od = net(xinout,xod,xut)
-            
-            loss_in = (mask_mx * criterion(yp_in, yin)).mean()
-            loss_in.backward(retain_graph=True)    
             loss = (mask_mx * criterion(yp_od, yod)).mean()
             loss.backward()
             optimizer.step()
@@ -333,9 +320,8 @@ re_prediction = re_normalization(prediction_od, od_min, od_max)
 re_target = re_normalization(target_od, od_min, od_max)
 
 
-
-from Metrics import MAPE,WMAPE,MRE,WMRE
-from sklearn.metrics import mean_squared_error as MSE#均方误差
+from Metrics import MRE
+from sklearn.metrics import mean_squared_error as MSE
 from sklearn.metrics import mean_absolute_error as MAE
 
 for pre in [(re_prediction,re_target)]:
@@ -344,11 +330,7 @@ for pre in [(re_prediction,re_target)]:
 
     mae = MAE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
     rmse = MSE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1)) ** 0.5
-    mape = MAPE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
     mre = MRE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
-    wmape = WMAPE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
-    wmre = WMRE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1)) # 不要采用，比MRE高
-    
 
 
     print('all RMSE: %.3f' % (rmse))
@@ -361,36 +343,17 @@ for pre in [(re_prediction,re_target)]:
 
     mae = MAE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
     rmse = MSE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1)) ** 0.5
-    mape = MAPE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
     mre = MRE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
-    wmape = WMAPE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1))
-    wmre = WMRE(re_target.reshape(-1, 1), re_prediction.reshape(-1, 1)) # 不要采用，比MRE高
-    
-    
+
     print('mask RMSE: %.3f' % (rmse))
     print('mask MAE: %.3f' % (mae))
     print('mask MRE: %.3f' % (mre))
 
-    # 45 大石；39珠江新城
-    # 49 天河；52 岗顶
-    # 21 广州火车站 38广州南站
-    
-    if re_prediction.shape[2] == 1: #jinzhan 
-        for st in [21,38,39,45,49,52]:
-            stationpre = re_prediction[:,0,0,st]
-            stationtrue = re_target[:,0,0,st]
-            plt.figure(dpi=300,figsize=(10, 6))
-            plt.plot(stationpre,label='pre')
-            plt.plot(stationtrue,label='true')
-            plt.legend()
-            plt.savefig(experience+f"/{st}.jpg")
-    if re_prediction.shape[2] == N:
-        for st in [(45,39),(49,52),(21,38)]:
-            stationpre = re_prediction[:,0,st[0],st[1]]
-            stationtrue = re_target[:,0,st[0],st[1]]
-            plt.figure(dpi=300,figsize=(10, 6))
-            plt.plot(stationpre,label='pre')
-            plt.plot(stationtrue,label='true')
-            plt.legend()
-            plt.savefig(experience+f"/{st}.jpg")
-            
+    for st in [(45,39),(49,52),(21,38)]:
+        stationpre = re_prediction[:,0,st[0],st[1]]
+        stationtrue = re_target[:,0,st[0],st[1]]
+        plt.figure(dpi=300,figsize=(10, 6))
+        plt.plot(stationpre,label='pre')
+        plt.plot(stationtrue,label='true')
+        plt.legend()
+        plt.savefig(experience+f"/{st}.jpg")
