@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Thu Oct 13 19:05:09 2022
 
+@author: Anne
+
+"""
 
 from torch.nn import Parameter
 import math
@@ -30,7 +35,7 @@ class ChanelAttention(nn.Module):
         att = att.view(x.size(0), -1) # (B, C)
         att = self.Relu(self.MLP1(att))
         att = torch.sigmoid(self.MLP2(att))
-        att = att.unsqueeze(2). unsqueeze(3).expand_as(x) # expand:复制的方式扩展
+        att = att.unsqueeze(2). unsqueeze(3).expand_as(x) 
         att_x = att *x
         return att_x
 #%% inflow branch
@@ -41,7 +46,7 @@ class GraphConvolution(nn.Module):
         self.K = 3
         self.in_feature = in_features
         self.out_feature = out_features
-        self.L_tilde = self.scaled_Laplacian(adj_mx) 
+        self.L_tilde = self.scaled_Laplacian(adj_mx)
         self.cheb_polynomials = self.cheb_polynomial(self.L_tilde, self.K)
         self.Theta = nn.ParameterList([nn.Parameter(torch.FloatTensor(self.in_feature, self.out_feature)) for _ in range(self.K)])
         
@@ -52,7 +57,7 @@ class GraphConvolution(nn.Module):
         L = D - W 
         lambda_max = eigs(L, k=1, which='LR')[0].real
 
-        return (2 * L) / lambda_max - np.identity(W.shape[0]) 
+        return (2 * L) / lambda_max - np.identity(W.shape[0]) # identity, I
     def cheb_polynomial(self, L_tilde, K):
         N = L_tilde.shape[0]
         cheb_polynomials = [np.identity(N), L_tilde.copy()]
@@ -111,8 +116,6 @@ class Branch1_block(nn.Module):
         
     def forward(self, x):
         x_init = x
-        
-        
         x = self.TAT(x)
         
         xg = self.gc1(x)
@@ -210,7 +213,7 @@ class modelall(nn.Module):
         self.W = nn.Parameter(torch.FloatTensor(2,N,N).to(device))
         self.zoom  = Z # (n,n)
                 
-    def forward(self, xin, xod,prob):
+    def forward(self, xin, xod, prob):
         # xinout :(B,t,f,n)
         # xod : (B,t,n,n)
         # prob : (B, t, n, n)
@@ -227,7 +230,6 @@ class modelall(nn.Module):
         
         return xod2
     
-
 
 def make_model(device, adj, Tr, Tp, Feature, N, filter, Z, dropout):
 
@@ -253,12 +255,11 @@ if __name__ == '__main__':
     Tr = 16
     Tp = 4
     N = 217
-    rd = 'r'
     feature = 2
     filter = 32
 
     dropout = 0.
-    # adj_mx = np.load("data/adj_mx_Lspace.npy").astype(np.float32)
+    adj_mx = np.load("data/adj_Lspace.npy").astype(np.float32)
     adj_mx = np.random.random((N,N))
     Z = 1/ torch.randn((N,N))
     net = make_model(DEVICE, adj_mx, Tr, Tp, feature, N, filter, Z, dropout).to(DEVICE)
@@ -268,3 +269,5 @@ if __name__ == '__main__':
     prob = torch.randn((32,Tp,N,N))
     
     y = net(xin, xod, prob)
+    
+    yin = net.branch1(xin)
